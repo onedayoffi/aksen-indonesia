@@ -1,0 +1,5 @@
+{
+  "name": "Vocalist AI - Advanced TTS",
+  "description": "A sophisticated Text-to-Speech application powered by Gemini 2.5, featuring multiple voice models, styles, and environmental simulations.",
+  "requestFramePermissions": []
+}
