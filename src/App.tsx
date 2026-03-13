@@ -246,8 +246,14 @@ export default function App() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Get API Key from URL query string (e.g., ?your_api_key_here)
-  const urlApiKey = typeof window !== 'undefined' ? window.location.search.substring(1) : '';
+  // Get Access Code from URL query string (e.g., ?your_code_here)
+  const urlAccessCode = typeof window !== 'undefined' ? window.location.search.substring(1) : '';
+  
+  // Get the valid API Key from environment variables
+  const validApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+
+  // Access is granted ONLY if URL code matches the registered API Key
+  const isAccessValid = urlAccessCode === validApiKey && validApiKey !== '';
 
   // Load history from localStorage and restore blobs
   useEffect(() => {
@@ -294,11 +300,11 @@ export default function App() {
 
     const executeGeneration = async () => {
       try {
-        // Use API Key from URL
-        const apiKey = urlApiKey;
+        // Use the validated API Key from environment
+        const apiKey = validApiKey;
         
         if (!apiKey) {
-          throw new Error("Akses Ditolak. Silakan gunakan link resmi dengan kode akses yang valid.");
+          throw new Error("Sistem belum dikonfigurasi dengan API Key.");
         }
 
         const ai = new GoogleGenAI({ apiKey });
@@ -406,8 +412,8 @@ export default function App() {
     document.body.removeChild(link);
   };
 
-  // If no API Key in URL, show access denied screen
-  if (!urlApiKey) {
+  // If access is not valid, show access denied screen
+  if (!isAccessValid) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 flex items-center justify-center p-6">
         <div className="max-w-md w-full space-y-8 text-center">
@@ -419,11 +425,11 @@ export default function App() {
               AKSES <span className="text-red-500">DITOLAK</span>
             </h1>
             <p className="text-zinc-500 text-sm">
-              Silakan gunakan link resmi yang telah diberikan untuk mengakses layanan ini.
+              Kode akses tidak valid atau link sudah kadaluwarsa.
             </p>
           </div>
           <div className="p-6 bg-zinc-900/40 border border-white/5 rounded-3xl text-xs text-zinc-400 leading-relaxed">
-            Layanan ini memerlukan kode akses yang valid melalui URL. Jika Anda merasa ini adalah kesalahan, silakan hubungi administrator.
+            Layanan ini diproteksi. Pastikan Anda menggunakan link resmi dengan kode akses yang terdaftar di sistem kami.
           </div>
         </div>
       </div>
