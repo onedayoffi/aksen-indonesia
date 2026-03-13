@@ -43,6 +43,11 @@ declare global {
       openSelectKey: () => Promise<void>;
     };
   }
+  interface ImportMeta {
+    readonly env: {
+      readonly [key: string]: string | undefined;
+    };
+  }
 }
 
 interface VoiceOption {
@@ -245,9 +250,18 @@ export default function App() {
   // Check for API Key on mount
   useEffect(() => {
     const checkKey = async () => {
+      // Safety check: only run if window.aistudio exists (AI Studio environment)
       if (window.aistudio?.hasSelectedApiKey) {
-        const selected = await window.aistudio.hasSelectedApiKey();
-        setHasApiKey(selected);
+        try {
+          const selected = await window.aistudio.hasSelectedApiKey();
+          setHasApiKey(selected);
+        } catch (e) {
+          console.warn("AI Studio API not available");
+          setHasApiKey(true); // Default to true for external deployments
+        }
+      } else {
+        // Outside AI Studio, we assume the key is provided via env vars
+        setHasApiKey(true);
       }
     };
     checkKey();
@@ -257,6 +271,8 @@ export default function App() {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
       setHasApiKey(true);
+    } else {
+      alert("Fitur ini hanya tersedia di dalam Google AI Studio. Untuk Netlify, silakan atur API Key di Environment Variables.");
     }
   };
 
@@ -305,7 +321,15 @@ export default function App() {
 
     const executeGeneration = async () => {
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        // Fallback for different environments (AI Studio vs Netlify/Vite)
+        const env = typeof process !== 'undefined' ? process.env : {};
+        const apiKey = env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+        
+        if (!apiKey) {
+          throw new Error("API Key tidak ditemukan. Pastikan VITE_GEMINI_API_KEY sudah diatur di Environment Variables Netlify.");
+        }
+
+        const ai = new GoogleGenAI({ apiKey });
         
         const isExperimental = selectedVoice.description.includes('Experimental');
         const voiceCharacterPrompt = isExperimental 
