@@ -243,38 +243,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [hasApiKey, setHasApiKey] = useState<boolean>(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Check for API Key on mount
-  useEffect(() => {
-    const checkKey = async () => {
-      // Safety check: only run if window.aistudio exists (AI Studio environment)
-      if (window.aistudio?.hasSelectedApiKey) {
-        try {
-          const selected = await window.aistudio.hasSelectedApiKey();
-          setHasApiKey(selected);
-        } catch (e) {
-          console.warn("AI Studio API not available");
-          setHasApiKey(true); // Default to true for external deployments
-        }
-      } else {
-        // Outside AI Studio, we assume the key is provided via env vars
-        setHasApiKey(true);
-      }
-    };
-    checkKey();
-  }, []);
-
-  const handleOpenKeySelector = async () => {
-    if (window.aistudio?.openSelectKey) {
-      await window.aistudio.openSelectKey();
-      setHasApiKey(true);
-    } else {
-      alert("Fitur ini hanya tersedia di dalam Google AI Studio. Untuk Netlify, silakan atur API Key di Environment Variables.");
-    }
-  };
+  // Get API Key from URL query string (e.g., ?your_api_key_here)
+  const urlApiKey = typeof window !== 'undefined' ? window.location.search.substring(1) : '';
 
   // Load history from localStorage and restore blobs
   useEffect(() => {
@@ -321,12 +294,11 @@ export default function App() {
 
     const executeGeneration = async () => {
       try {
-        // Fallback for different environments (AI Studio vs Netlify/Vite)
-        const env = typeof process !== 'undefined' ? process.env : {};
-        const apiKey = env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+        // Use API Key from URL
+        const apiKey = urlApiKey;
         
         if (!apiKey) {
-          throw new Error("API Key tidak ditemukan. Pastikan VITE_GEMINI_API_KEY sudah diatur di Environment Variables Netlify.");
+          throw new Error("Akses Ditolak. Silakan gunakan link resmi dengan kode akses yang valid.");
         }
 
         const ai = new GoogleGenAI({ apiKey });
@@ -395,10 +367,9 @@ export default function App() {
         }
 
         if (err.message?.includes('quota') || err.message?.includes('429')) {
-          setError("Token atau kuota habis. Jika Anda memiliki akun berbayar, silakan hubungkan API Key Anda.");
-        } else if (err.message?.includes('Requested entity was not found')) {
-          setError("API Key tidak valid atau tidak ditemukan. Silakan pilih ulang.");
-          setHasApiKey(false);
+          setError("Kuota untuk kode akses ini telah habis atau mencapai batas limit.");
+        } else if (err.message?.includes('API_KEY_INVALID') || err.message?.includes('invalid') || err.message?.includes('not found')) {
+          setError("Kode akses tidak valid atau sudah kadaluwarsa.");
         } else {
           setError(err.message || "Terjadi kesalahan internal pada server AI. Silakan coba lagi dalam beberapa saat.");
         }
@@ -435,6 +406,30 @@ export default function App() {
     document.body.removeChild(link);
   };
 
+  // If no API Key in URL, show access denied screen
+  if (!urlApiKey) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 flex items-center justify-center p-6">
+        <div className="max-w-md w-full space-y-8 text-center">
+          <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-center justify-center mx-auto">
+            <AlertCircle className="text-red-500 w-10 h-10" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-black tracking-tighter uppercase italic">
+              AKSES <span className="text-red-500">DITOLAK</span>
+            </h1>
+            <p className="text-zinc-500 text-sm">
+              Silakan gunakan link resmi yang telah diberikan untuk mengakses layanan ini.
+            </p>
+          </div>
+          <div className="p-6 bg-zinc-900/40 border border-white/5 rounded-3xl text-xs text-zinc-400 leading-relaxed">
+            Layanan ini memerlukan kode akses yang valid melalui URL. Jika Anda merasa ini adalah kesalahan, silakan hubungi administrator.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 font-sans selection:bg-emerald-500/30">
       <audio ref={audioRef} hidden />
@@ -452,28 +447,10 @@ export default function App() {
           </div>
           
           <div className="hidden sm:flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-            {!hasApiKey ? (
-              <button 
-                onClick={handleOpenKeySelector}
-                className="flex items-center gap-2 bg-emerald-500 text-black px-3 py-1.5 rounded-lg hover:bg-emerald-400 transition-colors"
-              >
-                <Smartphone className="w-3 h-3" />
-                Connect Paid Account
-              </button>
-            ) : (
-              <span className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                Gemini 2.5 Active
-              </span>
-            )}
-            <a 
-              href="https://ai.google.dev/gemini-api/docs/billing" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hover:text-zinc-300 transition-colors"
-            >
-              Billing Info
-            </a>
+            <span className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              System Active
+            </span>
           </div>
         </div>
       </header>
@@ -492,23 +469,6 @@ export default function App() {
                   exit={{ opacity: 0, x: 10 }}
                   className="space-y-6 sm:space-y-8"
                 >
-                  {!hasApiKey && (
-                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <AlertCircle className="text-emerald-500 w-5 h-5" />
-                        <p className="text-xs text-zinc-300">
-                          Anda mencapai batas kuota gratis? Hubungkan <strong>API Key Berbayar</strong> Anda untuk penggunaan tanpa batas.
-                        </p>
-                      </div>
-                      <button 
-                        onClick={handleOpenKeySelector}
-                        className="whitespace-nowrap bg-emerald-500 text-black px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-emerald-400 transition-all"
-                      >
-                        Hubungkan Akun
-                      </button>
-                    </div>
-                  )}
-
                   {/* Text Input Area */}
                   <section className="space-y-4">
                     <div className="flex items-center justify-between">
