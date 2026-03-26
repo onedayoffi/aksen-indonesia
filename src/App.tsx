@@ -37,16 +37,10 @@ function cn(...inputs: ClassValue[]) {
 // --- Types ---
 
 declare global {
-  interface Window {
-    aistudio: {
-      hasSelectedApiKey: () => Promise<boolean>;
-      openSelectKey: () => Promise<void>;
-    };
-  }
-  interface ImportMeta {
-    readonly env: {
-      readonly [key: string]: string | undefined;
-    };
+  namespace NodeJS {
+    interface ProcessEnv {
+      GEMINI_API_KEY?: string;
+    }
   }
 }
 
@@ -246,14 +240,8 @@ export default function App() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Get Access Code from URL query string (e.g., ?your_code_here)
-  const urlAccessCode = typeof window !== 'undefined' ? window.location.search.substring(1) : '';
-  
   // Get the valid API Key from environment variables
-  const validApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-
-  // Access is granted ONLY if URL code matches the registered API Key
-  const isAccessValid = urlAccessCode === validApiKey && validApiKey !== '';
+  const apiKey = process.env.GEMINI_API_KEY || '';
 
   // Load history from localStorage and restore blobs
   useEffect(() => {
@@ -300,9 +288,7 @@ export default function App() {
 
     const executeGeneration = async () => {
       try {
-        // Use the validated API Key from environment
-        const apiKey = validApiKey;
-        
+        // Use the API Key from environment
         if (!apiKey) {
           throw new Error("Sistem belum dikonfigurasi dengan API Key.");
         }
@@ -412,30 +398,6 @@ export default function App() {
     document.body.removeChild(link);
   };
 
-  // If access is not valid, show access denied screen
-  if (!isAccessValid) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 flex items-center justify-center p-6">
-        <div className="max-w-md w-full space-y-8 text-center">
-          <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-center justify-center mx-auto">
-            <AlertCircle className="text-red-500 w-10 h-10" />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-black tracking-tighter uppercase italic">
-              AKSES <span className="text-red-500">DITOLAK</span>
-            </h1>
-            <p className="text-zinc-500 text-sm">
-              Kode akses tidak valid atau link sudah kadaluwarsa.
-            </p>
-          </div>
-          <div className="p-6 bg-zinc-900/40 border border-white/5 rounded-3xl text-xs text-zinc-400 leading-relaxed">
-            Layanan ini diproteksi. Pastikan Anda menggunakan link resmi dengan kode akses yang terdaftar di sistem kami.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 font-sans selection:bg-emerald-500/30">
       <audio ref={audioRef} hidden />
@@ -448,7 +410,7 @@ export default function App() {
               <Volume2 className="text-black w-5 h-5" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tighter text-white uppercase italic">
-              PERFECT <span className="text-gradient">VOICE</span>
+              PERFECT <span className="text-gradient">VOICE .</span>
             </h1>
           </div>
           
